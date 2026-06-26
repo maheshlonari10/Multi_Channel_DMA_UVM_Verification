@@ -23,14 +23,14 @@ class axi_full_agent extends uvm_agent;
       sqr = axi_full_sequencer::type_id::create("sqr", this);
       drv = axi_full_driver::type_id::create("drv", this);
     end
-  end function
+  endfunction
 
   virtual function void connect_phase(uvm_phase phase);
     super.connect_phase(phase);
     if (get_is_active() == UVM_ACTIVE) begin
       drv.seq_item_port.connect(sqr.seq_item_export);
     end
-  end function
+  endfunction
 
 endclass
 
