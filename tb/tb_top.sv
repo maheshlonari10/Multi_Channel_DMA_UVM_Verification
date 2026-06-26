@@ -21,12 +21,15 @@ module tb_top;
     uvm_config_db#(virtual axi_full_if)::set(null, "uvm_test_top.env.full_agt*", "vif", full_if);
   end
 
-  // 4. Kickstart the Testbench Execution
+  // 4. Clean Reset Generation Block (Runs in parallel with UVM)
   initial begin
     ARESETn = 1'b0;
     #20;
     ARESETn = 1'b1;
-    
+  end
+
+  // 5. Kickstart the Testbench Execution EXACTLY at time 0
+  initial begin
     run_test("dma_base_test"); 
   end
 
