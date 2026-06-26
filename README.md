@@ -1,4 +1,3 @@
-# Multi_Channel_DMA_UVM_Verification
 # Multi-Channel DMA Controller UVM Verification Environment
 
 ## 📌 Project Overview
