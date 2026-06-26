@@ -30,23 +30,21 @@ class axi_full_driver extends uvm_driver #(axi_full_seq_item);
 
     // Initialize Read Channels
     vif.arid    <= 0;  vif.araddr  <= 0;  vif.arlen   <= 0;
-    vif.arsize  <= 0;  vif.arburst <= 0;  vif.arvalid <= 0;
+    vif.arsize  <= 0;  vif.arburst <= 0;  vif.arvalid <= 1'b0;
     vif.rready  <= 0;
 
     forever begin
       seq_item_port.get_next_item(req);
       
-      // Structured Visual Output: Print transaction start banner
       `uvm_info("AXI_FULL_DRV", $sformatf("\n==================================================\n[DRIVING TRANSACTION] ID: %0d | Op: %s\n==================================================", req.id, (req.op_type ? "WRITE" : "READ")), UVM_LOW)
       
       drive_burst_transfer(req);
       
-      // Structured Visual Output: Print internal fields using table printer format
       `uvm_info("AXI_FULL_DRV", $sformatf("\n[TRANSACTION COMPLETE]\n%s", req.sprint()), UVM_HIGH)
       
       seq_item_port.item_done();
     end
-  end task
+  endtask
 
   // Main task to route transactions based on operation type
   virtual task drive_burst_transfer(axi_full_seq_item item);
@@ -56,7 +54,7 @@ class axi_full_driver extends uvm_driver #(axi_full_seq_item);
     end else begin
       drive_read_burst(item);
     end
-  end task
+  endtask
 
   // AXI4-Full Write Burst Handshake Logic
   virtual task drive_write_burst(axi_full_seq_item item);
@@ -71,12 +69,12 @@ class axi_full_driver extends uvm_driver #(axi_full_seq_item);
     while (!vif.awready) @(posedge vif.ACLK);
     vif.awvalid <= 1'b0;
 
-    // Write Data Phase (Loops through the entire payload array)
+    // Write Data Phase
     for (int i = 0; i <= item.len; i++) begin
       vif.wdata  <= item.data[i];
       vif.wstrb  <= item.wstrb[i];
       vif.wvalid <= 1'b1;
-      vif.wlast  <= (i == item.len) ? 1'b1 : 1'b0; // Assert wlast on the final transfer beat
+      vif.wlast  <= (i == item.len) ? 1'b1 : 1'b0;
 
       while (!vif.wready) @(posedge vif.ACLK);
       @(posedge vif.ACLK);
@@ -89,7 +87,7 @@ class axi_full_driver extends uvm_driver #(axi_full_seq_item);
     while (!vif.bvalid) @(posedge vif.ACLK);
     item.resp   = vif.bresp;
     vif.bready <= 1'b0;
-  end task
+  endtask
 
   // AXI4-Full Read Burst Handshake Logic
   virtual task drive_read_burst(axi_full_seq_item item);
@@ -117,7 +115,7 @@ class axi_full_driver extends uvm_driver #(axi_full_seq_item);
       @(posedge vif.ACLK);
     end
     vif.rready <= 1'b0;
-  end task
+  endtask
 
 endclass
 
