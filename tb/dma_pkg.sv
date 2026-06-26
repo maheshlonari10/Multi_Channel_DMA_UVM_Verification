@@ -20,6 +20,8 @@ package dma_pkg;
   // Include Scoreboard and Environment Files
   `include "env/dma_scoreboard.sv"
   `include "env/dma_env.sv"
+  // Include Test Files
+  `include "tests/dma_base_test.sv"
 
 endpackage
 
