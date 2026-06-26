@@ -41,7 +41,7 @@ class axi_lite_monitor extends uvm_monitor;
         disable fork; // Prevent thread accumulation on clock cycles
       end
     end
-  end task
+  endtask
 
   // Sample Write Operations passively
   virtual task sample_write_tx();
@@ -62,7 +62,7 @@ class axi_lite_monitor extends uvm_monitor;
       // Send cloned item up the UVM hierarchy
       item_collected_port.write(trans);
     end
-  end task
+  endtask
 
   // Sample Read Operations passively
   virtual task sample_read_tx();
@@ -78,7 +78,7 @@ class axi_lite_monitor extends uvm_monitor;
       // Broadcast monitored transaction
       item_collected_port.write(trans);
     end
-  end task
+  endtask
 
 endclass
 
