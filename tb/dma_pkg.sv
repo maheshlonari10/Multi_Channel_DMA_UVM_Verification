@@ -17,7 +17,8 @@ package dma_pkg;
   `include "agents/axi_full_agent/axi_full_monitor.sv"
   `include "agents/axi_full_agent/axi_full_agent.sv"
 
-  // Include Environment File
+  // Include Scoreboard and Environment Files
+  `include "env/dma_scoreboard.sv"
   `include "env/dma_env.sv"
 
 endpackage
