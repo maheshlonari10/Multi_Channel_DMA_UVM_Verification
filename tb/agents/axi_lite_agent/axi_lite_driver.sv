@@ -34,7 +34,7 @@ class axi_lite_driver extends uvm_driver #(axi_lite_seq_item);
       drive_transfer(req);
       seq_item_port.item_done();
     end
-  end task
+  endtask
 
   // Main driving task splitting Read and Write protocol logic
   virtual task drive_transfer(axi_lite_seq_item item);
@@ -44,7 +44,7 @@ class axi_lite_driver extends uvm_driver #(axi_lite_seq_item);
     end else begin
       drive_read(item);
     end
-  end task
+  endtask
 
   // AXI4-Lite Write Handshake Logic
   virtual task drive_write(axi_lite_seq_item item);
@@ -72,7 +72,7 @@ class axi_lite_driver extends uvm_driver #(axi_lite_seq_item);
     while (!vif.bvalid) @(posedge vif.ACLK);
     item.resp = vif.bresp;
     vif.bready  <= 1'b0;
-  end task
+  endtask
 
   // AXI4-Lite Read Handshake Logic
   virtual task drive_read(axi_lite_seq_item item);
@@ -89,7 +89,7 @@ class axi_lite_driver extends uvm_driver #(axi_lite_seq_item);
     item.data = vif.rdata;
     item.resp = vif.rresp;
     vif.rready  <= 1'b0;
-  end task
+  endtask
 
 endclass
 
