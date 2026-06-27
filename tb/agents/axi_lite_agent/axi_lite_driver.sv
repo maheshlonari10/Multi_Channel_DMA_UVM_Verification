@@ -47,31 +47,29 @@ class axi_lite_driver extends uvm_driver #(axi_lite_seq_item);
   endtask
 
   // AXI4-Lite Write Handshake Logic
+// AXI4-Lite Write Handshake Logic (Sequential Multi-Cycle Fix)
   virtual task drive_write(axi_lite_seq_item item);
-    // Address & Data Phase
+    // Step 1: Execute Address Phase
     vif.awaddr  <= item.addr;
     vif.awvalid <= 1'b1;
+    
+    while (!vif.awready) @(posedge vif.ACLK);
+    vif.awvalid <= 1'b0; // Clear address valid right after handshake
+
+    // Step 2: Execute Data Phase (Matches RTL DATA State perfectly)
     vif.wdata   <= item.data;
     vif.wstrb   <= item.strb;
     vif.wvalid  <= 1'b1;
-    vif.bready  <= 1'b1;
+    
+    while (!vif.wready) @(posedge vif.ACLK);
+    vif.wvalid  <= 1'b0; // Clear data valid right after handshake
 
-    // Wait for Slave to accept Address and Data
-    fork
-      begin : aw_handshake
-        while (!vif.awready) @(posedge vif.ACLK);
-        vif.awvalid <= 1'b0;
-      end
-      begin : w_handshake
-        while (!vif.wready) @(posedge vif.ACLK);
-        vif.wvalid  <= 1'b0;
-      end
-    join
-
-    // Write Response Phase
+    // Step 3: Execute Write Response Phase
+    vif.bready  <= 1'b1; // Signal ready to accept response
     while (!vif.bvalid) @(posedge vif.ACLK);
-    item.resp = vif.bresp;
-    vif.bready  <= 1'b0;
+    
+    item.resp   = vif.bresp;
+    vif.bready  <= 1'b0; // Lower ready after response handshake completes
   endtask
 
   // AXI4-Lite Read Handshake Logic
