@@ -7,6 +7,9 @@ class dma_base_test extends uvm_test;
   // Handle for the top-level environment
   dma_env env;
 
+  // Handle for our active configuration sequence
+  dma_channel_config_seq config_seq;
+
   // Constructor
   function new(string name = "dma_base_test", uvm_component parent = null);
     super.new(name, parent);
@@ -18,14 +21,20 @@ class dma_base_test extends uvm_test;
     env = dma_env::type_id::create("env", this);
   endfunction
 
-  // Run Phase: Control the simulation timeout and print execution status
+  // Run Phase: Control the simulation timeout and execute sequences
   virtual task run_phase(uvm_phase phase);
     phase.raise_objection(this);
     
     `uvm_info("BASE_TEST", "\n==================================================\n        KICKSTARTING UVM BASE TEST RUN PHASE       \n==================================================", UVM_LOW)
     
-    // Small delay simulation wrapper until we hook up sequence triggers
-    #100;
+    // 1. Create the configuration stimulus sequence
+    config_seq = dma_channel_config_seq::type_id::create("config_seq");
+    
+    // 2. Start the sequence on the AXI-Lite Agent's Sequencer inside the environment
+    config_seq.start(env.lite_agt.sqr);
+    
+    // Small stabilization delay
+    #50;
     
     `uvm_info("BASE_TEST", "\n==================================================\n         CLOSING UVM BASE TEST RUN PHASE          \n==================================================", UVM_LOW)
     
