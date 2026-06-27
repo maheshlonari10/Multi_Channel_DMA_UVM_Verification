@@ -21,11 +21,34 @@ module tb_top;
     uvm_config_db#(virtual axi_full_if)::set(null, "uvm_test_top.env.full_agt*", "vif", full_if);
   end
 
-  // 4. Clean Reset Generation Block (Runs in parallel with UVM)
+  // 4. Clean Reset Generation Block
   initial begin
     ARESETn = 1'b0;
     #20;
     ARESETn = 1'b1;
+  end
+
+  // ==========================================================================
+  // OPTION A: BEHAVIORAL AXI-LITE SLAVE LOOPBACK STUB
+  // ==========================================================================
+  always @(posedge ACLK) begin
+    if (!lite_if.ARESETn) begin
+      lite_if.awready <= 1'b0;
+      lite_if.wready  <= 1'b0;
+      lite_if.bvalid  <= 1'b0;
+      lite_if.bresp   <= 2'b00;
+    end else begin
+      // Automatically pull ready high when valid is seen (zero-delay handshake)
+      lite_if.awready <= lite_if.awvalid;
+      lite_if.wready  <= lite_if.wvalid;
+      
+      // Drive write response handshake
+      if (lite_if.wvalid && lite_if.wready) begin
+        lite_if.bvalid <= 1'b1;
+      end else if (lite_if.bready) begin
+        lite_if.bvalid <= 1'b0;
+      end
+    end
   end
 
   // 5. Kickstart the Testbench Execution EXACTLY at time 0
