@@ -17,9 +17,13 @@ package dma_pkg;
   `include "agents/axi_full_agent/axi_full_monitor.sv"
   `include "agents/axi_full_agent/axi_full_agent.sv"
 
+  // Include Sequence Files
+  `include "sequences/dma_sequences.sv"
+  
   // Include Scoreboard and Environment Files
   `include "env/dma_scoreboard.sv"
   `include "env/dma_env.sv"
+
   // Include Test Files
   `include "tests/dma_base_test.sv"
 
