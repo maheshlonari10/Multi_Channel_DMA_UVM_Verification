@@ -22,18 +22,20 @@ class dma_base_test extends uvm_test;
   endfunction
 
   // Run Phase: Control the simulation timeout and execute sequences
-  virtual task run_phase(uvm_phase phase);
+virtual task run_phase(uvm_phase phase);
     phase.raise_objection(this);
     
     `uvm_info("BASE_TEST", "\n==================================================\n        KICKSTARTING UVM BASE TEST RUN PHASE       \n==================================================", UVM_LOW)
     
-    // 1. Create the configuration stimulus sequence
-    config_seq = dma_channel_config_seq::type_id::create("config_seq");
+    // 1. Wait for reset to be released safely before driving data
+    `uvm_info("BASE_TEST", "Waiting for reset release...", UVM_MEDIUM)
+    @(posedge env.lite_agt.mon.vif.ARESETn); 
+    @(posedge env.lite_agt.mon.vif.ACLK); // Small stability buffer clock
     
-    // 2. Start the sequence on the AXI-Lite Agent's Sequencer inside the environment
+    // 2. Create and launch the configuration stimulus sequence
+    config_seq = dma_channel_config_seq::type_id::create("config_seq");
     config_seq.start(env.lite_agt.sqr);
     
-    // Small stabilization delay
     #50;
     
     `uvm_info("BASE_TEST", "\n==================================================\n         CLOSING UVM BASE TEST RUN PHASE          \n==================================================", UVM_LOW)
