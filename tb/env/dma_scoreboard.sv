@@ -41,8 +41,8 @@ class dma_scoreboard extends uvm_scoreboard;
               item.addr, item.data, (item.op_type == 1'b1 ? "WRITE" : "READ")), UVM_LOW)
   endfunction
 
-  // Implementation for receiving and checking high-speed AXI-Full Burst memory streams (100% Intact)
- virtual function void write_full(axi_full_seq_item item);
+  // Implementation for receiving and checking high-speed AXI-Full Burst memory streams
+  virtual function void write_full(axi_full_seq_item item);
     `uvm_info("SB_FULL_REC", $sformatf("\n[SCOREBOARD] Monitored AXI-Full Burst Captured:\nID: %0d | Addr: 0x%0h | Len: %0d | Op: %s", 
               item.id, item.addr, item.len, (item.op_type ? "WRITE" : "READ")), UVM_LOW)
 
@@ -51,19 +51,23 @@ class dma_scoreboard extends uvm_scoreboard;
       foreach (item.data[i]) begin
         expected_mem_payload.push_back(item.data[i]);
       end
+      `uvm_info("SB_QUEUE_STORE", $sformatf("Stored %0d beats into Golden Reference Queue. Total size: %0d", item.len + 1, expected_mem_payload.size()), UVM_LOW)
     end 
     else begin                     // AXI WRITE (Data leaving DMA to Destination)
       foreach (item.data[i]) begin
         if (expected_mem_payload.size() > 0) begin
           bit [31:0] expected_data = expected_mem_payload.pop_front();
+          bit [31:0] beat_addr     = item.addr + (i << 2); // Calculate precise beat address
+          
           if (item.data[i] == expected_data) begin
             match_count++;
           end else begin
             mismatch_count++;
-            `uvm_error("SB_DATA_MISMATCH", $sformatf("Data error at Addr 0x%0h! Expected: 0x%0h, Got: 0x%0h", item.addr, expected_data, item.data[i]))
+            `uvm_error("SB_DATA_MISMATCH", $sformatf("Data error at Beat Address 0x%0h! Expected: 0x%0h, Got: 0x%0h", beat_addr, expected_data, item.data[i]))
           end
         end else begin
-          `uvm_warning("SB_UNEXPECTED_WRITE", "Scoreboard captured a Write transaction but no matching Read payload was expected!")
+          `uvm_warning("SB_UNEXPECTED_WRITE", $sformatf("Scoreboard captured an extra Write beat at index %0d but expected queue is empty!", i))
+          mismatch_count++;
         end
       end
     end
