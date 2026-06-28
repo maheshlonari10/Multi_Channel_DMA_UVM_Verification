@@ -157,27 +157,27 @@ module dma_master_axi_full (
                     end
                 end
 
-              WR_DATA: begin
+             WR_DATA: begin
     fifo_rd_en <= 1'b0;
-    WVALID     <= 1'b1; // Driven actively in this state
+    WVALID     <= 1'b1;
     WDATA      <= fifo_rd_data;
     
-    // FIX: Look directly at incoming WREADY since WVALID is guaranteed to settle high
     if (WREADY) begin
         wr_count <= wr_count + 1;
         
-        // Assert WLAST lookahead on the final beat or 16-beat boundary
+        // Assert WLAST lookahead on the 15th beat (index 14) so it registers on the 16th beat (index 15)
         if ((wr_count + 1) == xfer_len || (wr_count + 1) % 16 == 0) begin
             WLAST <= 1'b1;
         end
         
+        // FIX: Only transition out if WLAST is active AND the current cycle's handshake is successful
         if (WLAST) begin
-          WLAST    <= 1'b0;
-          WVALID   <= 1'b0;
-          BREADY   <= 1'b1;
-          wr_state <= WR_RESP;
+            WLAST    <= 1'b0;
+            WVALID   <= 1'b0;
+            BREADY   <= 1'b1;
+            wr_state <= WR_RESP;
         end else begin
-          fifo_rd_en <= 1'b1; // Advance FWFT FIFO pointer immediately for next cycle
+            fifo_rd_en <= 1'b1; // Keep popping values safely
         end
     end
 end
