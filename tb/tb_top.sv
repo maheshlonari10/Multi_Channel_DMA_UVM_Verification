@@ -49,10 +49,12 @@ module tb_top;
     .S_AXI_LITE_BVALID     (lite_if.bvalid),
     .S_AXI_LITE_BREADY     (lite_if.bready),
     
-    // AXI-Full High-Speed Data Master Port Mapping
-    .M_AXI_FULL_ARADDR     (full_if.addr),     // Map to full_if address rail
-    .M_AXI_FULL_ARLEN      (full_if.len),
-    .M_AXI_FULL_ARSIZE     (full_if.size),
+    // ==========================================================================
+    // AXI-FULL MASTER INTERFACE (Corrected Pin Mapping)
+    // ==========================================================================
+    .M_AXI_FULL_ARADDR     (full_if.araddr),     // Fixed from full_if.addr -> araddr
+    .M_AXI_FULL_ARLEN      (full_if.arlen),      // Fixed from full_if.len -> arlen
+    .M_AXI_FULL_ARSIZE     (full_if.arsize),     // Fixed from full_if.size -> arsize
     .M_AXI_FULL_ARVALID    (full_if.arvalid),
     .M_AXI_FULL_ARREADY    (full_if.arready),
     .M_AXI_FULL_RDATA      (full_if.rdata),
@@ -60,9 +62,9 @@ module tb_top;
     .M_AXI_FULL_RVALID     (full_if.rvalid),
     .M_AXI_FULL_RREADY     (full_if.rready),
     
-    .M_AXI_FULL_AWADDR     (full_if.addr),     // Shared address tracking
-    .M_AXI_FULL_AWLEN      (full_if.len),
-    .M_AXI_FULL_AWSIZE     (full_if.size),
+    .M_AXI_FULL_AWADDR     (full_if.awaddr),     // Fixed from full_if.addr -> awaddr
+    .M_AXI_FULL_AWLEN      (full_if.awlen),      // Fixed from full_if.len -> awlen
+    .M_AXI_FULL_AWSIZE     (full_if.awsize),     // Fixed from full_if.size -> awsize
     .M_AXI_FULL_AWVALID    (full_if.awvalid),
     .M_AXI_FULL_AWREADY    (full_if.awready),
     .M_AXI_FULL_WDATA      (full_if.wdata),
