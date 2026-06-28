@@ -140,7 +140,8 @@ module dma_master_axi_full (
             case (wr_state)
                 WR_IDLE: begin
                     dma_done <= 1'b0;
-                    if (dma_start && (!fifo_empty || wr_count > 0)) begin
+                        // FIX: Only launch a write burst if we haven't already completed all transfers!
+                        if (dma_start && (wr_count < xfer_len) && !fifo_empty) begin
                         AWADDR   <= dest_addr + (wr_count << 2);
                         AWLEN    <= (xfer_len - wr_count > 16) ? 8'd15 : (xfer_len - wr_count - 1);
                         AWVALID  <= 1'b1;
