@@ -8,7 +8,7 @@ module tb_top;
   bit ACLK;
   bit ARESETn;
 
-  // 100MHz Clock simulation
+  // 100MHz Simulation Clock
   always #5 ACLK = ~ACLK; 
 
   // 2. Instantiate the Physical Interfaces
@@ -29,29 +29,55 @@ module tb_top;
   end
 
   // ==========================================================================
-  // OPTION A: BEHAVIORAL AXI-LITE SLAVE LOOPBACK STUB
+  // FULL HARDWARE WRAPPER RTL INSTANTIATION
   // ==========================================================================
-  always @(posedge ACLK) begin
-    if (!lite_if.ARESETn) begin
-      lite_if.awready <= 1'b0;
-      lite_if.wready  <= 1'b0;
-      lite_if.bvalid  <= 1'b0;
-      lite_if.bresp   <= 2'b00;
-    end else begin
-      // Automatically pull ready high when valid is seen (zero-delay handshake)
-      lite_if.awready <= lite_if.awvalid;
-      lite_if.wready  <= lite_if.wvalid;
-      
-      // Drive write response handshake
-      if (lite_if.wvalid && lite_if.wready) begin
-        lite_if.bvalid <= 1'b1;
-      end else if (lite_if.bready) begin
-        lite_if.bvalid <= 1'b0;
-      end
-    end
-  end
+  wire dma_irq_signal;
 
-  // 5. Kickstart the Testbench Execution EXACTLY at time 0
+  dma_top u_dma_top (
+    .ACLK                  (ACLK),
+    .ARESETn               (ARESETn),
+    
+    // AXI-Lite Configuration Slave Port Mapping
+    .S_AXI_LITE_AWADDR     (lite_if.awaddr),
+    .S_AXI_LITE_AWVALID    (lite_if.awvalid),
+    .S_AXI_LITE_AWREADY    (lite_if.awready),
+    .S_AXI_LITE_WDATA      (lite_if.wdata),
+    .S_AXI_LITE_WSTRB      (lite_if.wstrb),
+    .S_AXI_LITE_WVALID     (lite_if.wvalid),
+    .S_AXI_LITE_WREADY     (lite_if.wready),
+    .S_AXI_LITE_BRESP      (lite_if.bresp),
+    .S_AXI_LITE_BVALID     (lite_if.bvalid),
+    .S_AXI_LITE_BREADY     (lite_if.bready),
+    
+    // AXI-Full High-Speed Data Master Port Mapping
+    .M_AXI_FULL_ARADDR     (full_if.addr),     // Map to full_if address rail
+    .M_AXI_FULL_ARLEN      (full_if.len),
+    .M_AXI_FULL_ARSIZE     (full_if.size),
+    .M_AXI_FULL_ARVALID    (full_if.arvalid),
+    .M_AXI_FULL_ARREADY    (full_if.arready),
+    .M_AXI_FULL_RDATA      (full_if.rdata),
+    .M_AXI_FULL_RLAST      (full_if.rlast),
+    .M_AXI_FULL_RVALID     (full_if.rvalid),
+    .M_AXI_FULL_RREADY     (full_if.rready),
+    
+    .M_AXI_FULL_AWADDR     (full_if.addr),     // Shared address tracking
+    .M_AXI_FULL_AWLEN      (full_if.len),
+    .M_AXI_FULL_AWSIZE     (full_if.size),
+    .M_AXI_FULL_AWVALID    (full_if.awvalid),
+    .M_AXI_FULL_AWREADY    (full_if.awready),
+    .M_AXI_FULL_WDATA      (full_if.wdata),
+    .M_AXI_FULL_WLAST      (full_if.wlast),
+    .M_AXI_FULL_WVALID     (full_if.wvalid),
+    .M_AXI_FULL_WREADY     (full_if.wready),
+    .M_AXI_FULL_BRESP      (full_if.bresp),
+    .M_AXI_FULL_BVALID     (full_if.bvalid),
+    .M_AXI_FULL_BREADY     (full_if.bready),
+    
+    // Status Interrupt Wire
+    .dma_irq               (dma_irq_signal)
+  );
+
+  // 5. Run UVM Test Sequence Engine
   initial begin
     run_test("dma_base_test"); 
   end
