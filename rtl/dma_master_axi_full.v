@@ -90,24 +90,25 @@ module dma_master_axi_full (
                     end
                 end
 
-                RD_BURST: begin
-                    if (ARREADY) ARVALID <= 1'b0;
-                    RREADY <= !fifo_full;
+               // Replace the RD_BURST block inside rtl/dma_master_axi_full.v with this:
+RD_BURST: begin
+    if (ARREADY) ARVALID <= 1'b0;
+    RREADY <= !fifo_full;
 
-                    if (RVALID && RREADY) begin
-                        fifo_wr_en   <= 1'b1;
-                        fifo_wr_data <= RDATA;
-                        rd_count     <= rd_count + 1;
-                        if (RLAST) begin
-                            RREADY     <= 1'b0;
-                            fifo_wr_en <= 1'b0;
-                            rd_state   <= (rd_count + 1 >= xfer_len) ? RD_DONE : RD_IDLE;
-                        end
-                    end else begin
-                        fifo_wr_en <= 1'b0;
-                    end
-                end
-
+    if (RVALID && RREADY) begin
+        fifo_wr_en   <= 1'b1; // This will now successfully register!
+        fifo_wr_data <= RDATA;
+        rd_count     <= rd_count + 1;
+        
+        if (RLAST) begin
+            RREADY     <= 1'b0;
+            // REMOVED: fifo_wr_en <= 1'b0; 
+            rd_state   <= (rd_count + 1 >= xfer_len) ? RD_DONE : RD_IDLE;
+        end
+    end else begin
+        fifo_wr_en <= 1'b0;
+    end
+end
                 RD_DONE: begin
                     fifo_wr_en <= 1'b0;
                     if (!dma_start) begin
@@ -157,27 +158,28 @@ module dma_master_axi_full (
                     end
                 end
 
-             WR_DATA: begin
+           WR_DATA: begin
     fifo_rd_en <= 1'b0;
     WVALID     <= 1'b1;
     WDATA      <= fifo_rd_data;
     
+    // Evaluate only when a valid data handshake step is active
     if (WREADY) begin
         wr_count <= wr_count + 1;
         
-        // Assert WLAST lookahead on the 15th beat (index 14) so it registers on the 16th beat (index 15)
+        // Lookahead assert WLAST on the 15th beat so it registers on the bus for the 16th
         if ((wr_count + 1) == xfer_len || (wr_count + 1) % 16 == 0) begin
             WLAST <= 1'b1;
         end
         
-        // FIX: Only transition out if WLAST is active AND the current cycle's handshake is successful
+        // CRITICAL FIX: Only exit the state if WLAST is active AND the final beat handshakes NOW
         if (WLAST) begin
             WLAST    <= 1'b0;
             WVALID   <= 1'b0;
             BREADY   <= 1'b1;
             wr_state <= WR_RESP;
         end else begin
-            fifo_rd_en <= 1'b1; // Keep popping values safely
+            fifo_rd_en <= 1'b1; // Safe to fetch next beat out of FWFT FIFO
         end
     end
 end
