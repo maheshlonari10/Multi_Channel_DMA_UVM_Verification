@@ -42,18 +42,17 @@ class dma_scoreboard extends uvm_scoreboard;
   endfunction
 
   // Implementation for receiving and checking high-speed AXI-Full Burst memory streams (100% Intact)
-  virtual function void write_full(axi_full_seq_item item);
+ virtual function void write_full(axi_full_seq_item item);
     `uvm_info("SB_FULL_REC", $sformatf("\n[SCOREBOARD] Monitored AXI-Full Burst Captured:\nID: %0d | Addr: 0x%0h | Len: %0d | Op: %s", 
               item.id, item.addr, item.len, (item.op_type ? "WRITE" : "READ")), UVM_LOW)
 
-    // Data verification algorithm
-    if (item.op_type == 1'b1) begin
-      // If it's a memory WRITE command, push the driven data into our golden comparison queue
+    // Aligned to check the DMA pipeline: READ fills the queue, WRITE checks the queue
+    if (item.op_type == 1'b0) begin // AXI READ (Data entering DMA from Source)
       foreach (item.data[i]) begin
         expected_mem_payload.push_back(item.data[i]);
       end
-    end else begin
-      // If it's a memory READ command, pull from the golden queue and check for matches
+    end 
+    else begin                     // AXI WRITE (Data leaving DMA to Destination)
       foreach (item.data[i]) begin
         if (expected_mem_payload.size() > 0) begin
           bit [31:0] expected_data = expected_mem_payload.pop_front();
@@ -64,7 +63,7 @@ class dma_scoreboard extends uvm_scoreboard;
             `uvm_error("SB_DATA_MISMATCH", $sformatf("Data error at Addr 0x%0h! Expected: 0x%0h, Got: 0x%0h", item.addr, expected_data, item.data[i]))
           end
         end else begin
-          `uvm_warning("SB_UNEXPECTED_READ", "Scoreboard captured a Read transaction but no matching Write payload was expected!")
+          `uvm_warning("SB_UNEXPECTED_WRITE", "Scoreboard captured a Write transaction but no matching Read payload was expected!")
         end
       end
     end
