@@ -36,7 +36,8 @@ virtual task run_phase(uvm_phase phase);
     config_seq = dma_channel_config_seq::type_id::create("config_seq");
     config_seq.start(env.lite_agt.sqr);
     
-    #50;
+    // EXTENDED DELAY: Allow the AXI-Full Master to complete high-speed burst loops
+    #500;
     
     `uvm_info("BASE_TEST", "\n==================================================\n         CLOSING UVM BASE TEST RUN PHASE          \n==================================================", UVM_LOW)
     
