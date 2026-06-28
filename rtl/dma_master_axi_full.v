@@ -157,28 +157,30 @@ module dma_master_axi_full (
                     end
                 end
 
-                WR_DATA: begin
-                    fifo_rd_en <= 1'b0;
-                    WVALID     <= 1'b1;
-                    WDATA      <= fifo_rd_data;
-                    
-                    // Simple tracking block for setting burst end boundary flag
-                    if (WVALID && WREADY) begin
-                        wr_count <= wr_count + 1;
-                        if ((wr_count + 1) == xfer_len || (wr_count + 1) % 16 == 0) begin
-                            WLAST <= 1'b1;
-                        end
-                        
-                        if (WLAST) begin
-                            WLAST    <= 1'b0;
-                            WVALID   <= 1'b0;
-                            BREADY   <= 1'b1;
-                            wr_state <= WR_RESP;
-                        end else begin
-                            fifo_rd_en <= 1'b1; // Fetch next beat
-                        end
-                    end
-                end
+              WR_DATA: begin
+    fifo_rd_en <= 1'b0;
+    WVALID     <= 1'b1; // Driven actively in this state
+    WDATA      <= fifo_rd_data;
+    
+    // FIX: Look directly at incoming WREADY since WVALID is guaranteed to settle high
+    if (WREADY) begin
+        wr_count <= wr_count + 1;
+        
+        // Assert WLAST lookahead on the final beat or 16-beat boundary
+        if ((wr_count + 1) == xfer_len || (wr_count + 1) % 16 == 0) begin
+            WLAST <= 1'b1;
+        end
+        
+        if (WLAST) begin
+          WLAST    <= 1'b0;
+          WVALID   <= 1'b0;
+          BREADY   <= 1'b1;
+          wr_state <= WR_RESP;
+        end else begin
+          fifo_rd_en <= 1'b1; // Advance FWFT FIFO pointer immediately for next cycle
+        end
+    end
+end
 
                 WR_RESP: begin
                     if (BVALID) begin
