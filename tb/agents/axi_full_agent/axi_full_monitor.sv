@@ -6,10 +6,6 @@ class axi_full_monitor extends uvm_monitor;
 
   virtual axi_full_if vif;
   uvm_analysis_port #(axi_full_seq_item) item_collected_port;
-  protected axi_full_seq_item trans;
-
-  // Internal dynamic queues to hold burst data as it arrives over multiple clocks
-  protected bit [31:0] write_data_queue[$];
 
   function new(string name = "axi_full_monitor", uvm_component parent = null);
     super.new(name, parent);
@@ -24,77 +20,94 @@ class axi_full_monitor extends uvm_monitor;
   endfunction
 
   virtual task run_phase(uvm_phase phase);
-    trans = axi_full_seq_item::type_id::create("trans");
+    @(posedge vif.ARESETn);
+    
+    fork
+      monitor_write_channel();
+      monitor_read_channel();
+    join
+  endtask
+
+  // ==========================================================================
+  // 1. ISOLATED WRITE MONITORING THREAD
+  // ==========================================================================
+  task monitor_write_channel();
+    axi_full_seq_item w_trans;
+    bit [31:0] w_queue[$];
+    
+    w_trans = axi_full_seq_item::type_id::create("w_trans");
     
     forever begin
       @(posedge vif.ACLK);
-      
       if (vif.ARESETn) begin
-        // ==========================================================================
-        // 1. MONITOR AXI-FULL WRITE BURSTS
-        // ==========================================================================
         if (vif.awvalid && vif.awready) begin
-          trans.addr    = vif.awaddr;
-          trans.id      = vif.awid;
-          trans.len     = vif.awlen;
-          trans.size    = vif.awsize;
-          trans.burst   = vif.awburst;
-          trans.op_type = 1'b1; // WRITE
+          w_trans.addr    = vif.awaddr;
+          w_trans.id      = vif.awid;
+          w_trans.len     = vif.awlen;
+          w_trans.size    = vif.awsize;
+          w_trans.burst   = vif.awburst;
+          w_trans.op_type = 1'b1; // Dedicated Write
         end
 
         if (vif.wvalid && vif.wready) begin
-          write_data_queue.push_back(vif.wdata);
+          w_queue.push_back(vif.wdata);
           
           if (vif.wlast) begin
-            trans.data = new[write_data_queue.size()];
-            foreach (write_data_queue[i]) begin
-              trans.data[i] = write_data_queue[i];
-            end
-            write_data_queue.delete(); // Clear queue for next burst
+            w_trans.data = new[w_queue.size()];
+            foreach (w_queue[i]) w_trans.data[i] = w_queue[i];
+            w_queue.delete();
           end
         end
 
         if (vif.bvalid && vif.bready) begin
-          trans.resp = vif.bresp;
-          `uvm_info("MON_FULL_CAPTURED", $sformatf("Captured AXI-Full WRITE Burst! Addr=0x%0h, Beats=%0d", trans.addr, trans.len + 1), UVM_LOW)
-          
-          item_collected_port.write(trans);
-          trans = axi_full_seq_item::type_id::create("trans"); // Fresh item
+          w_trans.resp = vif.bresp;
+          `uvm_info("MON_WRITE_CAPTURED", $sformatf("Captured AXI-Full WRITE! Addr=0x%0h, Beats=%0d", w_trans.addr, w_trans.len + 1), UVM_LOW)
+          item_collected_port.write(w_trans);
+          w_trans = axi_full_seq_item::type_id::create("w_trans");
         end
+      end else begin
+        w_queue.delete();
+      end
+    end
+  endtask
 
-        // ==========================================================================
-        // 2. MONITOR AXI-FULL READ BURSTS
-        // ==========================================================================
+  // ==========================================================================
+  // 2. ISOLATED READ MONITORING THREAD
+  // ==========================================================================
+  task monitor_read_channel();
+    axi_full_seq_item r_trans;
+    bit [31:0] r_queue[$];
+    
+    r_trans = axi_full_seq_item::type_id::create("r_trans");
+    
+    forever begin
+      @(posedge vif.ACLK);
+      if (vif.ARESETn) begin
         if (vif.arvalid && vif.arready) begin
-          trans.addr    = vif.araddr;
-          trans.id      = vif.arid;
-          trans.len     = vif.arlen;
-          trans.size    = vif.arsize;
-          trans.burst   = vif.arburst;
-          trans.op_type = 1'b0; // READ
-          write_data_queue.delete(); // Reuse queue safely
+          r_trans.addr    = vif.araddr;
+          r_trans.id      = vif.arid;
+          r_trans.len     = vif.arlen;
+          r_trans.size    = vif.arsize;
+          r_trans.burst   = vif.arburst;
+          r_trans.op_type = 1'b0; // Dedicated Read
         end
 
         if (vif.rvalid && vif.rready) begin
-          write_data_queue.push_back(vif.rdata);
+          r_queue.push_back(vif.rdata);
           
           if (vif.rlast) begin
-            trans.data = new[write_data_queue.size()];
-            foreach (write_data_queue[i]) begin
-              trans.data[i] = write_data_queue[i];
-            end
-            trans.resp = vif.rresp;
+            r_trans.data = new[r_queue.size()];
+            foreach (r_queue[i]) r_trans.data[i] = r_queue[i];
+            r_trans.resp = vif.rresp;
             
-            `uvm_info("MON_FULL_CAPTURED", $sformatf("Captured AXI-Full READ Burst! Addr=0x%0h, Beats=%0d", trans.addr, trans.len + 1), UVM_LOW)
-            
-            item_collected_port.write(trans);
-            write_data_queue.delete();
-            trans = axi_full_seq_item::type_id::create("trans");
+            `uvm_info("MON_READ_CAPTURED", $sformatf("Captured AXI-Full READ! Addr=0x%0h, Beats=%0d", r_trans.addr, r_trans.len + 1), UVM_LOW)
+            item_collected_port.write(r_trans);
+            r_queue.delete();
+            r_trans = axi_full_seq_item::type_id::create("r_trans");
           end
         end
-        
       end else begin
-        write_data_queue.delete();
+        r_queue.delete();
       end
     end
   endtask
