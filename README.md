@@ -14,45 +14,48 @@ The testbench is built using a highly modular, reusable Universal Verification M
 
 ```mermaid
 graph TD
-    subgraph uvm_test_top [UVM Test Layer]
-        dma_base_test[dma_base_test]
-    end
+    %% Test Component
+    Tests([Tests Layer]) -->|Triggers| Generator
 
-    subgraph dma_env [UVM Environment Layers]
-        dma_scoreboard[dma_scoreboard Table Engine]
+    subgraph Environment [UVM/SystemVerilog Environment Layer]
+        %% Stimulus Generation & Distribution via Mailboxes/TLM
+        Generator[Generator Engine]
+        Generator -->|Mailbox/TLM| Write_BFM[Write BFM / Driver]
+        Generator -->|Mailbox/TLM| Read_BFM[Read BFM / Driver]
+
+        %% Analysis and Tracking
+        Coverage[Coverage Model]
         
-        subgraph axi_lite_agent [AXI-Lite Agent Slave Component]
-            axi_lite_sequencer[axi_lite_sequencer]
-            axi_lite_driver[axi_lite_driver]
-            axi_lite_monitor[axi_lite_monitor]
+        subgraph ScoreBoard [ScoreBoard Block]
+            RefModel[Reference Model]
+            CompLogic[Comparison Logic]
         end
         
-        subgraph axi_full_agent [AXI-Full Agent Reactive Slave Component]
-            axi_full_driver[axi_full_driver Memory Slave]
-            axi_full_monitor[axi_full_monitor Dual-Thread]
-        end
+        ScoreBoard -->|Update| Coverage
+
+        %% Monitors
+        Write_Monitor[Write Monitor] -->|Transactions| RefModel
+        Read_Monitor[Read Monitor] -->|Transactions| CompLogic
     end
 
-    subgraph DUT [Design Under Test]
-        dma_top_rtl[dma_top Multi-Channel RTL]
-    end
-
-    virtual_if_lite((AXI-Lite Virtual Interface))
-    virtual_if_full((AXI-Full Virtual Interface))
-
-    dma_base_test -->|Executes Sequence| axi_lite_sequencer
-    axi_lite_sequencer -->|TLM Get| axi_lite_driver
+    %% Physical Interface Connections to DUV
+    Write_BFM <==>|Write Interface| DUV[DUV / RTL Design]
+    Read_BFM <==>|Read Interface| DUV
     
-    axi_lite_driver ==>|Drive Reg Configs| virtual_if_lite
-    axi_lite_monitor --->|Sample Handshakes| virtual_if_lite
-    virtual_if_lite <--> dma_top_rtl
+    %% Passive Monitoring Paths
+    DUV -.->|Passive Sniff| Write_Monitor
+    DUV -.->|Passive Sniff| Read_Monitor
 
-    axi_full_driver ==>|Reactive Handshakes / Memory Arrays| virtual_if_full
-    axi_full_monitor --->|Sample Bursts Concurrently| virtual_if_full
-    virtual_if_full <--> dma_top_rtl
-
-    axi_lite_monitor -->|Analysis Port: write_lite| dma_scoreboard
-    axi_full_monitor -->|Analysis Port: write_full| dma_scoreboard
+    %% Style Formatting for Clean Look
+    classDef layer fill:#1f6feb,stroke:#3081f7,stroke-width:2px,color:#fff;
+    classDef component fill:#21262d,stroke:#3081f7,stroke-width:1.5px,color:#c9d1d9;
+    classDef sb fill:#d29922,stroke:#f1e05a,stroke-width:2px,color:#0d1117;
+    classDef duv fill:#238636,stroke:#2ea043,stroke-width:2px,color:#fff;
+    
+    class Environment layer;
+    class Tests,Generator,Write_BFM,Read_BFM,Write_Monitor,Read_Monitor,Coverage component;
+    class ScoreBoard,RefModel,CompLogic sb;
+    class DUV duv;
 ```
 
 ## 📋 Verification Plan (VPlan)
