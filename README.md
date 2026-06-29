@@ -14,48 +14,68 @@ The testbench is built using a highly modular, reusable Universal Verification M
 
 ```mermaid
 graph TD
-    %% Test Component
-    Tests([Tests Layer]) -->|Triggers| Generator
-
-    subgraph Environment [UVM/SystemVerilog Environment Layer]
-        %% Stimulus Generation & Distribution via Mailboxes/TLM
-        Generator[Generator Engine]
-        Generator -->|Mailbox/TLM| Write_BFM[Write BFM / Driver]
-        Generator -->|Mailbox/TLM| Read_BFM[Read BFM / Driver]
-
-        %% Analysis and Tracking
-        Coverage[Coverage Model]
-        
-        subgraph ScoreBoard [ScoreBoard Block]
-            RefModel[Reference Model]
-            CompLogic[Comparison Logic]
-        end
-        
-        ScoreBoard -->|Update| Coverage
-
-        %% Monitors
-        Write_Monitor[Write Monitor] -->|Transactions| RefModel
-        Read_Monitor[Read Monitor] -->|Transactions| CompLogic
+    %% Test & Sequence Layer
+    subgraph Tests [UVM Tests Layer]
+        Write_Seq[Write Sequence]
+        Read_Seq[Read Sequence]
     end
 
-    %% Physical Interface Connections to DUV
-    Write_BFM <==>|Write Interface| DUV[DUV / RTL Design]
-    Read_BFM <==>|Read Interface| DUV
-    
-    %% Passive Monitoring Paths
-    DUV -.->|Passive Sniff| Write_Monitor
-    DUV -.->|Passive Sniff| Read_Monitor
+    %% Environment Layer
+    subgraph Environment [UVM Environment Block]
+        
+        %% Scoreboard block
+        subgraph Scoreboard [UVM Scoreboard]
+            Ref_Model[Ref Model Queue]
+            Comparison[Comparison Logic]
+        end
 
-    %% Style Formatting for Clean Look
-    classDef layer fill:#1f6feb,stroke:#3081f7,stroke-width:2px,color:#fff;
-    classDef component fill:#21262d,stroke:#3081f7,stroke-width:1.5px,color:#c9d1d9;
-    classDef sb fill:#d29922,stroke:#f1e05a,stroke-width:2px,color:#0d1117;
-    classDef duv fill:#238636,stroke:#2ea043,stroke-width:2px,color:#fff;
-    
-    class Environment layer;
-    class Tests,Generator,Write_BFM,Read_BFM,Write_Monitor,Read_Monitor,Coverage component;
-    class ScoreBoard,RefModel,CompLogic sb;
-    class DUV duv;
+        %% Write Agent
+        subgraph wr_agent [wr agent Components]
+            Write_Seqr[Write Seqr] -->|TLM Seq Item Port| Write_DRV[Write DRV]
+            Write_Mon[Write Mon]
+        end
+
+        %% Read Agent
+        subgraph rd_agent [rd agent Components]
+            Read_Seqr[Read Seqr] -->|TLM Seq Item Port| Read_DRV[Read DRV]
+            Read_Mon[Read Mon]
+        end
+
+    end
+
+    %% Design Under Verification
+    subgraph DUV_Block [Design Layer]
+        DUV[DUV / RTL Design]
+    end
+
+    %% Sequence execution paths
+    Write_Seq -.->|Started On| Write_Seqr
+    Read_Seq -.->|Started On| Read_Seqr
+
+    %% Physical Interface Pins
+    Write_DRV <==>|Write Interface| DUV
+    Read_DRV <==>|Read Interface| DUV
+    DUV ===>|Passive Sniff| Write_Mon
+    DUV ===>|Passive Sniff| Read_Mon
+
+    %% Analysis Port connections to Scoreboard
+    Write_Mon -->|TLM Analysis Port| Ref_Model
+    Read_Mon -->|TLM Analysis Port| Comparison
+
+    %% Visual Styling to match Maven Silicon Slides
+    classDef test_layer fill:#cccccc,stroke:#666666,stroke-width:2px,color:#000;
+    classDef env_layer fill:#f0f7ff,stroke:#1f6feb,stroke-width:2px,color:#000;
+    classDef agent_block fill:#ffe3cc,stroke:#ff9933,stroke-width:1.5px,color:#000;
+    classDef sb_block fill:#ffebd6,stroke:#ff9933,stroke-width:2px,color:#000;
+    classDef component fill:#2471a3,stroke:#1b4f72,stroke-width:1px,color:#fff;
+    classDef duv_style fill:#7dcea0,stroke:#1e8449,stroke-width:2px,color:#000;
+
+    class Tests test_layer;
+    class Environment env_layer;
+    class wr_agent,rd_agent agent_block;
+    class Scoreboard sb_block;
+    class Write_Seq,Read_Seq,Write_Seqr,Write_DRV,Write_Mon,Read_Seqr,Read_DRV,Read_Mon component;
+    class DUV duv_style;
 ```
 
 ## 📋 Verification Plan (VPlan)
