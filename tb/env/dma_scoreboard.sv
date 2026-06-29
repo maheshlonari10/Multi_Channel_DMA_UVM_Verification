@@ -37,11 +37,24 @@ class dma_scoreboard extends uvm_scoreboard;
     end
   endfunction
 
-  virtual function void write_lite(axi_lite_seq_item item);
+ virtual function void write_lite(axi_lite_seq_item item);
+    string reg_name;
+    
+    // Decode the Address into a readable register name
+    case (item.addr)
+      32'h0: reg_name = "CTRL_REG";
+      32'h4: reg_name = "SRC_ADDR";
+      32'h8: reg_name = "DEST_ADDR";
+      32'hc: reg_name = "XFER_LEN";
+      default: reg_name = "UNKNOWN";
+    endcase
+
     lite_write_count++;
     print_header();
-    $display("| %10d ns | %-12s | %-5s | 0x%08h | %4s | DATA: 0x%08h               |", 
-             $time, "AXI-Lite", (item.op_type ? "WRITE" : "READ"), item.addr, "-", item.data);
+    
+    // Formatted to fit beautifully in the PAYLOAD column
+    $display("| %10d ns | %-12s | %-5s | 0x%08h | %4s | %-10s : 0x%08h       |", 
+             $time, "AXI-Lite", (item.op_type ? "WRITE" : "READ"), item.addr, "-", reg_name, item.data);
   endfunction
 
   virtual function void write_full(axi_full_seq_item item);
