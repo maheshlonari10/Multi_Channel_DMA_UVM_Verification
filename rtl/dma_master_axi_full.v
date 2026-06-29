@@ -149,14 +149,13 @@ end
                         wr_state <= WR_ADDR;
                     end
                 end
-
-         WR_ADDR: begin
+WR_ADDR: begin
     if (AWREADY) begin
         AWVALID    <= 1'b0;
-        fifo_rd_en <= 1'b1; // Pop first item out of FIFO
+        fifo_rd_en <= 1'b0; // CRITICAL: Do NOT pop the FIFO here!
+        WVALID     <= 1'b1; // Prime WVALID so data is ready on cycle 1
         wr_state   <= WR_DATA;
         
-        // FIX: Prime WLAST instantly if this burst is exactly 1 beat long!
         if ((xfer_len - wr_count) == 1) begin
             WLAST <= 1'b1;
         end
@@ -164,28 +163,28 @@ end
 end
 
 WR_DATA: begin
-    fifo_rd_en <= 1'b0;
-    WVALID     <= 1'b1;
-    WDATA      <= fifo_rd_data;
+    WDATA <= fifo_rd_data;
     
-    if (WREADY) begin
-        wr_count <= wr_count + 1;
+    // Evaluate handshake: Only move data if both Master and Slave are ready
+    if (WVALID && WREADY) begin
+        fifo_rd_en <= 1'b1; // Pop FIFO to fetch the NEXT beat immediately
+        wr_count   <= wr_count + 1;
         
-        // Exit only if WLAST is currently active and the final beat is handshaking
         if (WLAST) begin
             WLAST    <= 1'b0;
             WVALID   <= 1'b0;
             BREADY   <= 1'b1;
             wr_state <= WR_RESP;
+            // Note: fifo_rd_en pulses one last time here to queue up the 
+            // first beat of the NEXT burst while we wait in WR_RESP.
         end else begin
-            fifo_rd_en <= 1'b1; // Safe to fetch next beat
-            
-            // CRITICAL FIX: Assert WLAST exactly 1 cycle before the 16th beat.
-            // Using (wr_count + 2) compensates for the non-blocking non-zero delay.
+            // Assert WLAST exactly 1 cycle before the burst boundary
             if ((wr_count + 2) == xfer_len || (wr_count + 2) % 16 == 0) begin
                 WLAST <= 1'b1;
             end
         end
+    end else begin
+        fifo_rd_en <= 1'b0; // Safely stall the FIFO if the bus pauses
     end
 end
                 WR_RESP: begin
