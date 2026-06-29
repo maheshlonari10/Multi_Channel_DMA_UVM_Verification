@@ -2,7 +2,7 @@
 `define DMA_SCOREBOARD_SV
 
 `uvm_analysis_imp_decl(_lite)
-`uvm_analysis_imp_full(_full)
+`uvm_analysis_imp_decl(_full)
 
 class dma_scoreboard extends uvm_scoreboard;
   `uvm_component_utils(dma_scoreboard)
