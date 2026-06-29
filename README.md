@@ -53,6 +53,7 @@ graph TD
 
     axi_lite_monitor -->|Analysis Port: write_lite| dma_scoreboard
     axi_full_monitor -->|Analysis Port: write_full| dma_scoreboard
+```
 
 ## 📋 Verification Plan (VPlan)
 
