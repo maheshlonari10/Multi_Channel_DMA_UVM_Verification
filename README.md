@@ -45,11 +45,11 @@ graph TD
     
     axi_lite_driver ==>|Drive Reg Configs| virtual_if_lite
     axi_lite_monitor --->|Sample Handshakes| virtual_if_lite
-    virtual_if_lite <=> dma_top_rtl
+    virtual_if_lite <--> dma_top_rtl
 
     axi_full_driver ==>|Reactive Handshakes / Memory Arrays| virtual_if_full
     axi_full_monitor --->|Sample Bursts Concurrently| virtual_if_full
-    virtual_if_full <=> dma_top_rtl
+    virtual_if_full <--> dma_top_rtl
 
     axi_lite_monitor -->|Analysis Port: write_lite| dma_scoreboard
     axi_full_monitor -->|Analysis Port: write_full| dma_scoreboard
