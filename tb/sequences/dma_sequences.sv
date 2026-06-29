@@ -74,7 +74,7 @@ class dma_multiburst_seq extends uvm_sequence #(axi_lite_seq_item);
     // 1. Program Source Address
     req = axi_lite_seq_item::type_id::create("req");
     start_item(req);
-    req.op_type = 1; // Write
+    req.op_type = axi_op_e'(1);  // <--- Added explicit cast
     req.addr    = 32'h4;
     req.data    = 32'h10000000;
     finish_item(req);
@@ -82,7 +82,7 @@ class dma_multiburst_seq extends uvm_sequence #(axi_lite_seq_item);
     // 2. Program Destination Address
     req = axi_lite_seq_item::type_id::create("req");
     start_item(req);
-    req.op_type = 1;
+    req.op_type = axi_op_e'(1);  // <--- Added explicit cast
     req.addr    = 32'h8;
     req.data    = 32'h20000000;
     finish_item(req);
@@ -90,19 +90,19 @@ class dma_multiburst_seq extends uvm_sequence #(axi_lite_seq_item);
     // 3. Program Transfer Length to 64 words (0x40)
     req = axi_lite_seq_item::type_id::create("req");
     start_item(req);
-    req.op_type = 1;
+    req.op_type = axi_op_e'(1);  // <--- Added explicit cast
     req.addr    = 32'hc;
-    req.data    = 32'h00000040; // 64 words!
+    req.data    = 32'h00000040;  // 64 words!
     finish_item(req);
 
     // 4. Start the DMA
     req = axi_lite_seq_item::type_id::create("req");
     start_item(req);
-    req.op_type = 1;
+    req.op_type = axi_op_e'(1);  // <--- Added explicit cast
     req.addr    = 32'h0;
     req.data    = 32'h1;
     finish_item(req);
-
+    
     `uvm_info("SEQ_BODY", "\n==================================================\n        MULTI-BURST REGISTERS PROGRAMMED SUCESSFULLY      \n==================================================", UVM_LOW)
   endtask
 endclass
