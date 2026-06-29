@@ -30,9 +30,9 @@ module dma_master_axi_full (
     input  wire        AWREADY,
     
     // AXI-Full Write Data Channel (M)
-    output reg  [31:0] WDATA,
-    output reg         WLAST,
-    output reg         WVALID,
+    output wire [31:0] WDATA,
+    output wire        WLAST,
+    output wire        WVALID,
     input  wire        WREADY,
     
     // AXI-Full Write Response Channel (M)
@@ -44,18 +44,17 @@ module dma_master_axi_full (
     output reg         fifo_wr_en,
     output reg  [31:0] fifo_wr_data,
     input  wire        fifo_full,
-    output reg         fifo_rd_en,
+    output wire        fifo_rd_en,
     input  wire [31:0] fifo_rd_data,
     input  wire        fifo_empty
 );
 
-    // States for the Read Master Engine
+    // States
     reg [1:0] rd_state;
     localparam RD_IDLE  = 2'b00,
                RD_BURST = 2'b01,
                RD_DONE  = 2'b10;
 
-    // States for the Write Master Engine
     reg [1:0] wr_state;
     localparam WR_IDLE  = 2'b00,
                WR_ADDR  = 2'b01,
@@ -64,7 +63,15 @@ module dma_master_axi_full (
 
     reg [31:0] rd_count;
     reg [31:0] wr_count;
-    reg [3:0]  burst_beat_cnt; // Tracks beats within a single 16-beat burst (0 to 15)
+    reg [3:0]  burst_beat_cnt;
+
+    // ==========================================================================
+    // 0. COMBINATIONAL AXI WRITE DATA LOGIC
+    // ==========================================================================
+    assign WDATA      = fifo_rd_data;
+    assign WVALID     = (wr_state == WR_DATA) && !fifo_empty;
+    assign WLAST      = (wr_state == WR_DATA) && (burst_beat_cnt == AWLEN);
+    assign fifo_rd_en = WVALID && WREADY;
 
     // ==========================================================================
     // 1. AXI-FULL READ MASTER STATE MACHINE
@@ -73,7 +80,7 @@ module dma_master_axi_full (
         if (!ARESETn) begin
             ARADDR       <= 32'h0;
             ARLEN        <= 8'h0;
-            ARSIZE       <= 3'b010; // 4 Bytes per transfer
+            ARSIZE       <= 3'b010; 
             ARVALID      <= 1'b0;
             RREADY       <= 1'b0;
             fifo_wr_en   <= 1'b0;
@@ -81,37 +88,38 @@ module dma_master_axi_full (
             rd_count     <= 0;
             rd_state     <= RD_IDLE;
         end else begin
+            
+            // CRITICAL FIX: Default to 0 every cycle. This prevents the "0f" junk
+            // data from leaking into the FIFO when transitioning states!
+            fifo_wr_en <= 1'b0; 
+            
             case (rd_state)
                 RD_IDLE: begin
                     if (dma_start && (rd_count < xfer_len)) begin
-                        ARADDR  <= src_addr + (rd_count << 2);
-                        ARLEN   <= (xfer_len - rd_count > 16) ? 8'd15 : (xfer_len - rd_count - 1);
-                        ARVALID <= 1'b1;
+                        ARADDR   <= src_addr + (rd_count << 2);
+                        ARLEN    <= (xfer_len - rd_count > 16) ? 8'd15 : (xfer_len - rd_count - 1);
+                        ARVALID  <= 1'b1;
                         rd_state <= RD_BURST;
                     end
                 end
 
-               // Replace the RD_BURST block inside rtl/dma_master_axi_full.v with this:
-RD_BURST: begin
-    if (ARREADY) ARVALID <= 1'b0;
-    RREADY <= !fifo_full;
+                RD_BURST: begin
+                    if (ARREADY) ARVALID <= 1'b0;
+                    RREADY <= !fifo_full;
 
-    if (RVALID && RREADY) begin
-        fifo_wr_en   <= 1'b1; // This will now successfully register!
-        fifo_wr_data <= RDATA;
-        rd_count     <= rd_count + 1;
-        
-        if (RLAST) begin
-            RREADY     <= 1'b0;
-            // REMOVED: fifo_wr_en <= 1'b0; 
-            rd_state   <= (rd_count + 1 >= xfer_len) ? RD_DONE : RD_IDLE;
-        end
-    end else begin
-        fifo_wr_en <= 1'b0;
-    end
-end
+                    if (RVALID && RREADY) begin
+                        fifo_wr_en   <= 1'b1; // Pulses for exactly 1 cycle!
+                        fifo_wr_data <= RDATA;
+                        rd_count     <= rd_count + 1;
+                        
+                        if (RLAST) begin
+                            RREADY   <= 1'b0;
+                            rd_state <= (rd_count + 1 >= xfer_len) ? RD_DONE : RD_IDLE;
+                        end
+                    end
+                end
+
                 RD_DONE: begin
-                    fifo_wr_en <= 1'b0;
                     if (!dma_start) begin
                         rd_count <= 0;
                         rd_state <= RD_IDLE;
@@ -121,7 +129,7 @@ end
         end
     end
 
-  // ==========================================================================
+    // ==========================================================================
     // 2. AXI-FULL WRITE MASTER STATE MACHINE
     // ==========================================================================
     always @(posedge ACLK or negedge ARESETn) begin
@@ -130,78 +138,46 @@ end
             AWLEN          <= 8'h0;
             AWSIZE         <= 3'b010;
             AWVALID        <= 1'b0;
-            WDATA          <= 32'h0;
-            WLAST          <= 1'b0;
-            WVALID         <= 1'b0;
             BREADY         <= 1'b0;
-            fifo_rd_en     <= 1'b0;
             wr_count       <= 0;
             burst_beat_cnt <= 0;
             dma_done       <= 1'b0;
             wr_state       <= WR_IDLE;
         end else begin
-            
-            // Continuous assignment so WDATA always displays what is ready in the FWFT FIFO
-            WDATA <= fifo_rd_data;
-
             case (wr_state)
                 WR_IDLE: begin
-                    fifo_rd_en <= 1'b0;
-                    WVALID     <= 1'b0;
-                    WLAST      <= 1'b0;
-                    dma_done   <= 1'b0;
-                    
+                    dma_done <= 1'b0;
+                    BREADY   <= 1'b0;
                     if (dma_start && (wr_count < xfer_len) && !fifo_empty) begin
                         AWADDR         <= dest_addr + (wr_count << 2);
                         AWLEN          <= (xfer_len - wr_count > 16) ? 8'd15 : (xfer_len - wr_count - 1);
                         AWVALID        <= 1'b1;
-                        burst_beat_cnt <= 0; 
+                        burst_beat_cnt <= 0;
                         wr_state       <= WR_ADDR;
                     end
                 end
 
                 WR_ADDR: begin
                     if (AWREADY) begin
-                        AWVALID    <= 1'b0;
-                        fifo_rd_en <= 1'b0;   // FWFT Rule: Do NOT pop early!
-                        WVALID     <= 1'b1;   // Data is already waiting at the output
-                        wr_state   <= WR_DATA;
-                        
-                        if ((xfer_len - wr_count) == 1) begin
-                            WLAST <= 1'b1;
-                        end
+                        AWVALID  <= 1'b0;
+                        wr_state <= WR_DATA;
                     end
                 end
 
                 WR_DATA: begin
-                    // Throttle WVALID dynamically if the FIFO runs dry mid-burst
-                    WVALID <= !fifo_empty;
-
+                    // Data handling is now purely combinational at the top of the file!
                     if (WVALID && WREADY) begin
                         wr_count       <= wr_count + 1;
                         burst_beat_cnt <= burst_beat_cnt + 1;
                         
                         if (WLAST) begin
-                            fifo_rd_en <= 1'b0; // Stop reading immediately
-                            WLAST      <= 1'b0;
-                            WVALID     <= 1'b0;
-                            BREADY     <= 1'b1;
-                            wr_state   <= WR_RESP;
-                        end else begin
-                            fifo_rd_en <= 1'b1; // Pop to fetch the next word
-                            
-                            // Check boundary using the dedicated beat counter
-                            if (burst_beat_cnt == 4'd14 || (wr_count + 2) == xfer_len) begin
-                                WLAST <= 1'b1;
-                            end
+                            BREADY   <= 1'b1;
+                            wr_state <= WR_RESP;
                         end
-                    end else begin
-                        fifo_rd_en <= 1'b0; // Hold the pointer if the slave stalls
                     end
                 end
 
                 WR_RESP: begin
-                    fifo_rd_en <= 1'b0; 
                     if (BVALID) begin
                         BREADY <= 1'b0;
                         if (wr_count >= xfer_len) begin
@@ -213,5 +189,4 @@ end
             endcase
         end
     end
-
 endmodule
