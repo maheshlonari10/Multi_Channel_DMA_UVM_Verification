@@ -48,3 +48,6 @@ run_base: opt
 
 run_multiburst: opt
 	$(MAKE) run TEST_NAME=dma_multiburst_test
+
+run_rand: opt
+	$(MAKE) run TEST_NAME=dma_rand_len_test
