@@ -50,4 +50,4 @@ run_multiburst: opt
 	$(MAKE) run TEST_NAME=dma_multiburst_test
 
 run_rand: opt
-	$(MAKE) run TEST_NAME=dma_rand_len_test
+	vsim -c -do "run -all; exit" +UVM_TESTNAME=dma_rand_len_test -sv_seed random tb_top
