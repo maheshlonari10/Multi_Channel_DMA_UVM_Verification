@@ -22,6 +22,22 @@ TB_SRC  = $(TB_DIR)/agents/axi_lite_agent/axi_lite_if.sv \
           $(TB_DIR)/dma_pkg.sv \
           $(TB_DIR)/tb_top.sv
 
+# Default target when typing just 'make'
+help:
+	@echo "======================================================================"
+	@echo "             DMA Controller UVM Verification Environment              "
+	@echo "======================================================================"
+	@echo "Available Targets:"
+	@echo "----------------------------------------------------------------------"
+	@echo "  make help             - Displays this menu"
+	@echo "  make comp             - Compiles the RTL and UVM testbench"
+	@echo "  make opt              - Optimizes the compiled design (vopt)"
+	@echo "  make run_base         - Runs the 16-beat Single Burst Sanity Test"
+	@echo "  make run_multiburst   - Runs the 64-word Multi-Burst Stress Test"
+	@echo "  make run_rand         - Runs the Constrained Random Length Test"
+	@echo "  make clean            - Removes all simulation generated files"
+	@echo "======================================================================"
+
 # ==========================================
 # Base Targets
 # ==========================================
