@@ -106,3 +106,55 @@ class dma_multiburst_seq extends uvm_sequence #(axi_lite_seq_item);
     `uvm_info("SEQ_BODY", "\n==================================================\n        MULTI-BURST REGISTERS PROGRAMMED SUCESSFULLY      \n==================================================", UVM_LOW)
   endtask
 endclass
+
+class dma_rand_len_seq extends uvm_sequence #(axi_lite_seq_item);
+  `uvm_object_utils(dma_rand_len_seq)
+
+  // 1. Declare the random variable and its constraints
+  rand bit [31:0] rand_xfer_len;
+  
+  // Constrain the length to test anywhere from a 1-beat single transfer up to 256 words
+  constraint c_len { rand_xfer_len inside {[1:256]}; }
+
+  function new(string name = "dma_rand_len_seq");
+    super.new(name);
+  endfunction
+
+  virtual task body();
+    axi_lite_seq_item req;
+    
+    `uvm_info("SEQ_BODY", $sformatf("\n==================================================\n   STARTING RANDOM LENGTH CONFIG (%0d WORDS)\n==================================================", rand_xfer_len), UVM_LOW)
+
+    // 1. Program Source Address
+    req = axi_lite_seq_item::type_id::create("req");
+    start_item(req);
+    req.op_type = axi_op_e'(1);
+    req.addr    = 32'h4;
+    req.data    = 32'h10000000;
+    finish_item(req);
+
+    // 2. Program Destination Address
+    req = axi_lite_seq_item::type_id::create("req");
+    start_item(req);
+    req.op_type = axi_op_e'(1);
+    req.addr    = 32'h8;
+    req.data    = 32'h20000000;
+    finish_item(req);
+
+    // 3. Program Transfer Length (RANDOMIZED!)
+    req = axi_lite_seq_item::type_id::create("req");
+    start_item(req);
+    req.op_type = axi_op_e'(1);
+    req.addr    = 32'hc;
+    req.data    = rand_xfer_len; // <--- The UVM solver decides this number!
+    finish_item(req);
+
+    // 4. Start the DMA
+    req = axi_lite_seq_item::type_id::create("req");
+    start_item(req);
+    req.op_type = axi_op_e'(1);
+    req.addr    = 32'h0;
+    req.data    = 32'h1;
+    finish_item(req);
+  endtask
+endclass
