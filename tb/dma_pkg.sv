@@ -27,6 +27,7 @@ package dma_pkg;
   // Include Test Files
   `include "tests/dma_base_test.sv"
   `include "dma_multiburst_test.sv"
+  `include "dma_rand_len_test.sv"
 
 endpackage
 
